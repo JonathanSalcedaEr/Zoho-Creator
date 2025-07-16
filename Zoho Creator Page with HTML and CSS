@@ -1,0 +1,1370 @@
+<%{
+	thisapp.Helpers.onMaintenance();
+	Project = Project_Entry_Form[ID == input.id.toLong()];
+	User = User_Profile_Create_Form[Email == thisapp.permissions.loginUserEmailId()];
+	//get user role
+	// 	LoginEmail = thisapp.portal.loginUserEmailId();
+	// 	LoginUserRole = User.App_User_Role;
+	//for description and exec summ default
+	DefaultDescExecSumm = thisapp.Viewer.showDefaultExecDescription();
+	//entry Links
+	//allAddLinks = thisapp.Controller.setAddLinks(id.toLong());
+	//getting Business Unit records
+	Business_Unit = Business_Units[ID == Project.Business_Unit_Name];
+	//getting all records
+	All_Beneficiaries = Beneficiary_Entry_Form[Project_ID == input.id.toLong() && Status == "Active"];
+	//All_LineItems = Line_Item_Entry_Form_Chien[Project_ID == input.id.toLong() && Stat == "Active"];
+	All_KPI = KPI_Entry_Form[Project_ID == input.id.toLong() && Status == "Active"];
+	//for project details header
+	Details_Top = thisapp.Viewer.showProjectDetailsTop(input.id.toLong(),"basic-info",input.from_page,input.from_tab);
+	Details_Top_NoEdit = thisapp.Viewer.showProjectDetailsTop(input.id.toLong()," ",input.from_page,input.from_tab);
+	//for budget summary - BUSINESS UNIT
+	get_bu_budget_summary = thisapp.Controller.getBudgetSummary(Project.Business_Unit_Name,Project.Budget_Year);
+	//for budget summary - LINE ITEM
+	BudgetSummary = thisapp.Model.ComputLineItemSummaryV2(input.id.toLong());
+	//for line item summary
+	//setting page display
+	setPage_Basic = if(input.section == "basic-info","checked","");
+	setPage_Line = if(input.section == "line-item","checked","");
+	setPage_KPI = if(input.section == "kpi","checked","");
+	setPage_Ben = if(input.section == "beneficiary","checked","");
+	setPage_Att = if(input.section == "attachments","checked","");
+	setPage_Work = if(input.section == "workflow","checked","");
+	setPage_Edit = if(input.section == "edit-history","checked","");
+	user_email = thisapp.permissions.loginUserEmailId();
+	//for buttons
+	actionButton = thisapp.Controller.ConfirmAction(input.id.toLong());
+	//rejectButton = thisapp.Viewer.showRejectOption(id.toLong());
+	withdrawButton = thisapp.Viewer.showWithdrawOption(input.id.toLong());
+	reversalButton = thisapp.Viewer.showProjectReversalButton(input.id.toLong());
+	urls = thisapp.Helpers.setURL();
+	print_link = urls.get("Print") + "/Project_Summary/?project_id=" + input.id + "&isc5page=true";
+	download_link = urls.get("PDF") + "/Project_Summary/?project_id=" + input.id + "&isc5page=true";
+	//for project extension request date
+	project_extension_record = Change_Request_Header_Form[Section1 == "Project Extension" && Item_ID = input.id && Status == "Submitted" || Status == "Endorsed"];
+	if(project_extension_record.count() == 0)
+	{
+		project_end_date = thisapp.Controller.NormalDateConverter(Project.End_Date);
+	}
+	else if(project_extension_record.count() > 0)
+	{
+		new_project_end_date = Change_Request_Entry_Form[Change_Request_ID == project_extension_record.ID.toString()];
+		project_end_date = "<strike>" + if(Project.End_Date != null,thisapp.Controller.NormalDateConverter(Project.End_Date)," ") + "</strike>&nbsp&nbsp" + thisapp.Controller.NormalDateConverter(new_project_end_date.New_Value.toTime());
+	}
+	project_link = "#Page:Project_Details_Page_Line_Item?id=" + input.id + "&section=line-item&from_page=project&from_tab=" + input.from_tab;
+	%>
+<html>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<style>
+	<%=thisapp.Viewer.setMenuView()%>
+	<%=thisapp.Viewer.cssDropdown()%>
+	//menu, upper navigation branding
+	
+	.zc-pb-page-content-wrapper .zpelement-wrapper.zcpage-elemContainer{
+			height: 100%;
+			
+	}	
+   .zc-pb-singleElement,
+    .zc-pb-page-content-wrapper,
+    .zpelement-wrapper.zcpage-elemContainer {
+        height: 100% !important;
+    }
+    
+    .zc-pb-page-content-wrapper .zc-pb-singleElement[displaytype="plain"] .elemContainment,
+    .zc-pb-singleElement[displaytype="plain"] .elemContainment>.zcpage-elemContainer>.column-container>.zpelement-wrapper {
+        height: 100% !important;
+    }
+    
+    #elementsContainer {
+        height: 100% !important;
+    }
+	
+	/**FOR POP UP HEIGHT**/
+	
+	.zcpopup.compact .popupbox-wrapper .popupbox {
+		max-height: 71%;
+	}
+    html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, embed, figure, figcaption, footer, header, hgroup, menu, nav, output, ruby, section, summary, time, mark, audio, video, input{
+		font-family: 'Roboto', sans-serif;
+	}
+    body {
+        font-family: 'Roboto', sans-serif;
+        font-weight: normal;
+        background-color: rgb(248, 248, 248);
+    }
+    
+    .container {
+        /* background-color: white; */
+        /* height: 110%; */
+        width: 75%;
+        margin: 0 auto;
+        border-radius: 8px;
+        /*box-shadow: 0px 2px 10px #9b9b9bbe; */
+        /* overflow: auto; */
+    }
+    
+    .article-inner-wrapper {
+        padding: 30px;
+        background-color: #ffffff;
+        border-radius: 5px;
+        box-shadow: 0 6px 20px 0 rgba(13, 51, 32, 0.1);
+        margin-bottom: 4%;
+    }
+    
+    h1 {
+        color: #333;
+        margin: 1em auto;
+    }
+    
+    .tabordion {
+        color: #333;
+        display: block;
+        margin: 0 auto;
+        position: relative;
+        width: 95%;
+        /*height: 100%;*/
+    }
+    
+    .tabordion input[name="sections"] {
+        left: -9999px;
+        position: absolute;
+        top: -9999px;
+    }
+    
+    .tabordion section {
+        display: block;
+    }
+    
+    .tabordion section label {
+        background: white;
+        background-color: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
+        display: block;
+        font-size: 14px;
+        font-weight: 400;
+        padding: 11px 23px;
+        position: relative;
+        width: 18%;
+        z-index: 100;
+        margin: 5px 0;
+    }
+    
+    .tabordion section article {
+        display: none;
+        left: 24%;
+        padding: 0 0 0 27px;
+        position: absolute;
+        top: 0;
+        width: 72%;
+        height: 95%;
+        background-color: transparent;
+    }
+    
+    .tabordion section label:hover {
+        background-color: rgba(218, 218, 218, 0.616)
+    }
+    
+    .tabordion section article:after {
+        /* background-color: rgb(255, 255, 255); */
+        bottom: 0;
+        content: "";
+        display: block;
+        left: -33%;
+        position: absolute;
+        top: 0;
+        width: 33%;
+        height: 142%;
+        border-radius: 5px;
+        z-index: -9;
+    }
+    
+    .tabordion input[name="sections"]:checked + label {
+        background-color: rgba(229, 77, 77, 0.267);
+        color: black;
+        font-weight: 700;
+    }
+	
+    .tabordion input[name="sections"]:checked ~ article {
+        display: block;
+    }
+    
+    .details-id-name {
+        float: right;
+        position: relative;
+        width: 100%;
+        margin: 0px 0 10px 0;
+        color: grey;
+        font-size: 14px;
+    }
+    
+    .back {
+        background-color: white !important;
+        padding: 23px 16px !important;
+        border-bottom: 1px solid #d4d4d4 !important;
+        margin-bottom: 13px !important;
+        color: #E54D4D !important;
+        text-decoration: none !important;
+        font-weight: 700;
+        font-size: 14px;
+    }
+    
+    .tabordion section a:link {
+        text-decoration: none !important;
+        font-style: 700;
+    }
+    /**table**/
+    
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        font-style: normal;        
+        text-shadow: none !important;
+        font-weight: 300 !important;
+        font-size: 14px;
+    }
+    
+    th,
+    td {
+        padding: 22px 8px;
+        text-align: left;
+        border-top: 1px solid rgb(233, 233, 233);
+        line-height: 22px;
+    }
+    /**table line item**/
+    
+    .budget-table {
+        margin-bottom: 15px
+    }
+    
+    .budget-table tbody .line-item td {
+        border-top: none !important;
+        border-bottom: none;
+    }
+    
+    .budget-table tbody .only-bottom {
+        border-bottom: 1px solid rgb(233, 233, 233);
+    }
+    
+    .budget-table tbody .less-bottom-padding td {
+        padding-bottom: 0 !important;
+    }
+    
+    .line-item-entry {
+        display: inline;
+    }
+    
+    .line-item-table tbody .line-item td {
+        border-top: none !important;
+        /* border-bottom: 1px solid rgb(233, 233, 233) !important; */
+    }
+    
+    .line-item-table td {
+        padding-bottom: 5px;
+        padding-top: 3px;
+        padding-left: 0;
+		border: 0px;
+    }
+
+    .line-item-grey{
+        background-color: #F7F7F7;
+        margin-bottom: 25px;
+    }
+    .line-item-grey td{
+        padding-right: 20px;
+        padding-left: 20px;
+		vertical-align: top;
+    }
+	.line-item-red{
+        background-color: #E54D4D;
+        margin-bottom: 25px;
+		color:white !important;
+    }
+	.line-item-ben-header{
+		padding: 10px 0px; 
+		border: 0px; 
+		border-bottom: 0px solid rgb(233, 233, 233) !important;
+		font-size:11px;
+	}
+	
+	.line-item-ben{
+		padding: 10px 0px 10px 0px !important; 
+		border: 0px;
+		margin-top: 15px !important;
+		font-size:13px;
+	}
+	.line-item-ben-2{
+		padding: 5px 0px 0px 0px !important; 
+		border: 0px;
+		margin-top: 15px !important;
+	}
+	.budget-change-request{
+		font-size:12px; 
+		border-top: 0px solid rgb(233, 233, 233) !important;
+		color:#A7A7A7; 
+		padding-top: 0px !important;
+		padding-left: 20px !important;
+		padding-right: 0px !important; 
+		padding-bottom: 0px !important; 
+		vertical-align: middle;
+	}
+	.first {
+		border-top-left-radius: 5px;
+		border-bottom-left-radius: 5px;
+		padding-left: 10px !important;
+	}
+	.last {
+		border-top-right-radius: 5px;
+		border-bottom-right-radius: 5px;
+		padding-right: 5px !important;
+	}
+	.top{
+		border-bottom-left-radius: 0px !important;
+		border-bottom-right-radius: 0px !important;
+	}
+	.bottom{
+		padding-bottom: 0px !important;
+		border-top-left-radius: 0px !important;
+		border-top-right-radius: 0px !important;
+	}
+	.bordered{
+		border-bottom: 1px solid rgb(233, 233, 233) !important;
+	}
+    .no-pad-left{
+        padding-left: 0 !important;
+    }
+    
+    
+    .line-value-left {
+        text-align: left;
+    }
+    
+    .line-value-right {
+        text-align: right;
+    }
+    
+    .adjust-right {
+        width: 26%;
+    }
+    
+    .line-type {
+        color: #A8A8A8;
+    }
+    .line-type-summ{
+        color: #A8A8A8;
+        width:35%;
+		vertical-align: top;
+    }
+    
+    .left-pad {
+        padding-left: 7%
+    }
+    
+    .entry-id {
+        width: 35%;
+        color: #A8A8A8;
+    }
+    
+    .project-title {
+        font-size: 18px;
+        font-weight: 700;
+        /* width: 85%; */
+        /* padding: 0 0 5px 0; */
+    }
+    
+    .pt-beneficiary {
+        margin-bottom: 10px;
+    }
+	.beneficiary-deets-table{
+		margin-bottom:40px;
+	}
+	
+    
+    .beneficiary-deets-table td {
+        border-top: none !important;
+		
+    }
+    
+    .approver-entry {
+        width: 32%;
+        color: #A8A8A8;
+    }
+    
+    .approver-table td {
+        border-top: none !important;
+        padding: 5px 0;
+    }
+    
+    .app-status {
+        order: none;
+        color: white;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 12px;
+        border-radius: 18px;
+    }
+    
+    .is-approved {
+        background-color: #3CAC60;
+        /* Green */
+        padding: 1px 11px;
+    }
+    
+    .is-rejected {
+        background-color: red;
+        padding: 1px 16px;
+    }
+    
+    .is-pending {
+        background-color: grey;
+        padding: 1px 15px;
+    }
+    
+    .beneficiary-deets-table tr {
+        border-bottom: 1px solid #e7e7e7 !important;
+    }
+    
+    #progressbar {
+        background-color: rgb(238, 238, 238);
+        border-radius: 13px;
+        padding: 1px;
+    }
+    
+    #progressbar>div {
+        background-color: #E54D4D;
+		width: <%=get_bu_budget_summary.get('bar_percentage')%>%;
+        height: 6px;
+        border-radius: 10px;
+    }
+    
+    .line-item-details {
+        float: right;
+        position: relative;
+        width: 100%;
+        margin: 14px 0 5px 0;
+        color: #E6E6E6;
+        font-size: 14px;
+    }
+    
+    .no-top-border {
+        border-top: 0 !important;
+    }
+    .no-border {
+        border: 0 !important;
+    }
+    .less-padding {
+        padding: 0px 10px  !important;
+    }
+    .no-padding {
+        padding: 5px !important;
+    }
+	.indented{
+		padding-left: 40px !important;
+	}
+	.btn-gradient {
+		border-radius: 30px;
+		color: #fff;
+		padding: 8px 25px;
+		margin-right: 15px;
+		font-size: 16px;
+		background-color: #e91e63;
+		background-image: linear-gradient(to right,#e14758,rgba(161,84,143,.58));
+	}
+  
+    
+    .tabordion a:link {
+        text-decoration: none
+    }
+    
+    .back-link {
+        width: 23%;
+        padding: 20px 0px 18px 0px;
+        border-bottom: 1px solid rgba(233, 230, 230, 0.555);
+        margin-bottom: 15px;
+        font-size: 14px;
+    }
+    
+    .edit-link {
+        float: right;
+        color: #E54D4D;
+        margin-right: 1%;
+        font-size: 14px;
+    }
+    
+    .delete-link {
+        float: right;
+        color: #E54D4D;
+        margin-right: 10px;
+    }
+    
+    .line-heading {
+        width: 80%;
+        height: 10px;
+        border-bottom: 1px solid #E6E6E6;
+        margin: 0 auto;
+        float: left;
+    }
+    
+    .line-deets {
+        padding: 0 10px 0 0;
+        color: black;
+        font-weight: 700;
+        font-size: 14px;
+        background-color: white;
+    }
+    
+    .row-border-none {
+        border: none;
+    }
+    
+    /**attachments**/
+    .attachment-table{
+        margin-top:20px;
+    }
+
+    .attachment-head{
+        border-top: 0;
+        background-color: #FAFAFA;
+    }
+
+    .center-text{
+        text-align: center;
+    }
+
+    .file-stuff{
+        width: 20%;
+		padding:0;
+		vertical-align: top;
+    }
+ 
+    .le{
+        color: #E54D4D;
+        
+    }
+
+    .upload{
+        background-color:#E54D4D;
+        color: white;
+        padding: 3px 6px;
+    }
+    
+    /**edit history**/
+    .edit-his-center {
+        padding: 22px 0px;
+        text-align: center;
+        border: none;
+    }
+    
+    .center-div-line {
+        width: 100%;
+        height: 10px;
+        border-bottom: 1px solid #E6E6E6;
+        text-align: center;
+        margin: 0 auto;
+    }
+    
+    .edit-date {
+        background-color: white;
+        padding: 0 10px;
+        color: black;
+		font-weight: 600;
+		font-size: 15px;
+    }
+    
+    .edit-variable-container {
+        background-color: white;
+        padding: 0 10px;
+        color: grey;
+        margin: 4% 0 0 0;
+    }
+    
+    .from {
+        color: #dbdbdb;
+        margin: 0px 0 5px 0;
+    }
+    
+    .edit-variable {
+        font-weight: 700;
+        color: black;
+    }
+    
+    .buttons-wrap {
+        width: 21%;
+        padding: 20px 0px 18px 0px;
+        text-align: center;
+        border-top: 1px solid #E6E6E6;
+        margin-left: 3%;
+        margin-top: 15px;
+    }
+    
+    .buttons-wrap a:link {
+        text-decoration: none;
+    }
+    
+    .submit-but {
+        margin-left: 3%;
+        width: 95%;
+        margin-right: 6%;
+        background-color: #E54D4D;
+        color: white;
+        padding: 6px 0;
+        margin-top: 0px;
+        font-size: 14px;
+		opacity: 1;
+    }
+    
+    .save-but {
+        margin-left: 3%;
+		width: 95%;
+		margin-right: 6%;
+		color: #E54D4D;
+		padding: 8px;
+		margin-top: 15px;
+		font-size: 14px;
+		border: 1px solid;
+		border-radius: 20px;
+    }
+    
+    .hallow-but {
+		color: #E54D4D;
+		padding: 8px;
+		font-size: 14px;
+		border: 1px solid;
+		border-radius: 20px;
+    }
+	.right-float{
+		float:right;
+	}
+    .container>.tabordion a:link {
+        text-decoration: none !important;
+    }
+    /** media queries here**/
+	
+	/* Role Confirmation */
+		.role-confirmation-container{
+			margin-bottom: 20px;
+		}
+		/* Background Adjustment */
+		.zc-pb-content-themes,
+		.page_content_wrapper{
+			background-color: #f7f8fa !imortant;
+			background: #f7f8fa !important;
+		}
+		[displayType="plain"] .zc-pb-tile-card{
+			/*overflow: hidden;*/
+		}
+		.search-brand-profile-container{
+			background-color: #fff;
+			box-shadow: 0px 11px 19px rgba(0,0,0,0.1);
+			position: fixed;
+			width: 100%;
+			display: block;
+			z-index: 999;
+		}
+		/* Upper Menu */
+		.menu-panel-container{
+			margin-top: 80px;
+		}
+		.branding,
+		.search-box-wrapper{
+			float: left;
+			padding: 15px 20px 15px 50px;
+			height: 40px
+		}
+		.profile{
+			float: right;
+			margin-right: 50px;
+		}
+		.branding{
+			font-size: 30px;
+			color: #e14758;
+		}
+		.search-box-wrapper{
+			line-height: 45px;
+			font-size: 15px;
+			color: #A8A8A8;
+		}
+		.notification,
+		.message,
+		.logout,
+		.change-pass,
+		.profile-link{
+			padding: 15px;
+			display: inline-block;
+			vertical-align: middle;
+			line-height: 40px;
+		}
+		.profile-link a{
+			background-color: #f7f8fa;
+			padding: 12px 18px;
+			border-radius: 50%;
+			background-image: linear-gradient(#e14758, rgba(161, 84, 143, 0.58));
+			color: #fff;
+			font-size: 20px;
+		}
+		.main-ontainer{
+			margin-top: 70px;
+		}
+		.project-detail-container{
+			padding-top: 115px;
+		}
+		/* Pop up box adjustment */
+		.zcpopup.compact .popupbox-wrapper .popupbox .popupboxOuter{
+			padding: 40px 40px 30px 40px;
+		}
+		.zcpopup.compact .popupbox-wrapper .popupbox{
+			border-radius: 15px;
+		}
+		.zcpopup .zc-live-primary-btn, .zcpopup .zc-live-secondary-btn{
+			border-radius: 30px;
+			color: #ffffff;
+			padding: 8px 25px;
+			width: 150px;
+			margin-right: 35px;
+			font-size: 16px;
+			background-color: #E91E63;
+			background-image: linear-gradient(to right, #e14758, rgba(161, 84, 143, 0.58));
+		}
+		.zcpopup.compact .popupbox-wrapper .popupbox {
+			pointer-events: auto;
+			}
+
+			.popupbox-wrapper {
+				pointer-events: none;
+				}
+		.add-line-item{
+			float: right;
+			color: #E54D4D;
+			font-size: 18px;
+			font-weight: bold;
+			background-color: #fff;
+			padding: 0 10px;
+		}
+		.section-status-red{
+			width: 10px;
+			height: 10px;
+			background-color: red;
+			display: inline-block;
+			border-radius: 50%;
+			margin-right: 5px;
+		}
+		.section-status-green{
+			width: 10px;
+			height: 10px;
+			background-color: green;
+			display: inline-block;
+			border-radius: 50%;
+			margin-right: 5px;
+		}
+		.no-go{
+			background-color: #E54D4DA6;
+			opacity: 0.8;
+		}
+		
+		.submit-but{
+				padding: 8px 10px;
+				border-bottom-right-radius: 20px;
+				border-radius: 20px;
+				background-color: #E91E63;
+				background-image: linear-gradient(to right, #e14758, rgba(161, 84, 143, 0.58));
+			}
+			.search-brand-profile-container{
+				z-index: 997;
+			}
+		@media only screen and (max-width:800px){
+			.search-brand-profile-container{
+				display:none
+			}
+			.tabordion section label,
+			.tabordion input[name="sections"]:checked + label{
+				position: fixed;
+				left: 0;
+				font-size: 11px;
+				padding: 8px;
+				border-bottom-right-radius: 20px;
+				border-top-right-radius: 20px;
+			}
+			.tabordion section label{
+				background-color: rgba(218, 218, 218, 0.616);
+			}
+			.lbl-basic{
+				top: 70px;
+			}
+			.lbl-line{
+				top: 130px;
+			}
+			.lbl-kpi{
+				top: 190px;
+			}
+			.lbl-ben{
+				top: 263px;
+			}
+			.lbl-attachments{
+				top: 325px;
+			}
+			.lbl-workflow{
+				top: 375px;
+			}
+			.lbl-act{
+				top: 438px;
+			}
+			.lnk-print,
+			.lnk-download{
+				display: none;
+			}
+			.buttons-wrap{
+				position: fixed;
+				left: -15px;
+				top: 500px;
+				border-top: none;
+				font-size: 11px;
+			}
+
+			.tabordion section article{
+				left: 0;
+				width: 100%;
+			}
+			.article-inner-wrapper{
+				padding: 10px;
+				width: 100%;
+				margin-left: 10px;
+			}
+			.lnk-basic-edit span{
+				margin-top: 30px;
+				margin-right: 30px;
+			}
+			.back-link{
+				position: fixed;
+				left: 0;
+				top: 0;
+			}
+			.project-detail-container {
+				padding-top: 25px;
+			}
+			.entry-id{
+				width: auto;
+			}
+			td{
+				padding: 22px 3px;
+			}
+			.container{
+				width: 70%;
+			}
+			.tabordion input[name="sections"]:checked + label{
+				color: #ffffff;
+				background-color: #E91E63;
+				background-image: linear-gradient(to right, #e14758, rgba(161, 84, 143, 0.58));
+			}
+			
+			.submit-but{
+				margin-left: -7%;
+				border-bottom-left-radius: 0;
+				border-top-left-radius: 0;
+			}
+			
+			.center-div-line{
+				height: auto;
+			}
+			.line-heading{
+				width: 67%;
+				height: auto;
+				padding-bottom: 8px;
+			}
+			.section-status-red{
+				position: absolute;
+				right: 0;
+			}
+		}
+		/* Cash advance section */
+		.ca-buttons-container{
+			overflow: auto;
+		}
+		.ca-buttons-container .hallow-but
+		{
+			display: block;
+			width: 100px;
+			float: right;
+			margin: 25px 0;
+			text-align: center;
+		}
+		.ca-list-container table tr td
+		{
+			padding: 0;
+			text-align: left;
+			border-top: 1px solid
+			rgb(233, 233, 233);
+			line-height: 22px;
+		}
+		.ca-list-container table .tbl-ca-head td
+		{
+			padding: 15px;
+			background-color: #fafafa;
+			border: none;
+			font-size: 15px;
+			font-weight: 400;
+		}
+		.ca-list-container table tr td a{
+			display: block;
+			padding: 15px;
+		}
+		.ca-list-container table tr td .more-details{margin: 0}
+		
+		.ca-list-container table tr:hover
+		{
+			box-shadow: 1px 1px 8px rgba(0,0,0,0.3);
+		}
+		.ca-list-container table tr.tbl-ca-head:hover{box-shadow: none}
+		.document-status{
+			padding:12px 0px; 
+			width:35%; 
+			text-align: center; 
+			color: grey;
+			font-size:13px;
+		}
+		/* Notifications */
+		@media only screen and (max-width:800px){.dashboard-item-container{width:auto;max-width:100%}}.dashboard-item-container{width:40%;float:left;margin-right:2.5%;margin-bottom:20px}.notif-list{padding-left:0;height:500px;overflow-x:auto}.notif-list li{list-style:none}.notif-list li:nth-child(odd){background:#f7f8fa}.notif-list li a{color:#212121;padding:8px 10px;display:block}.notif-list li:hover{background:rgba(229,77,77,.1);transition:.4s}.notif-count{background-color:#e54d4d;color:#fff;padding:4px 8px;font-size:13px;border-radius:50%;position:relative;font-weight:400}.notif-container h3{font-weight:400;font-size:20px}.notif-project-title{color:#7b7b7b;margin-top:4px;display:block;line-height:1.3}.notif-subtext{color:#7b7b7b;font-size:13px}.notif-project-title{color:#212121}
+		
+		
+</style>
+</head>
+
+<body>
+
+	<!-- //top Navigation -->
+	<%=thisapp.Viewer.createUpperNavigation(user_email)%>
+	
+    <div class="container project-detail-container">
+        <div class="tabordion">
+            <!-- <section id="section">
+               <input type="radio" name="sections" id="option">
+               <a href="#Page:CSR_Officer_Proposals_Page" class="back-link">
+                   <label for="option" class="back"><strong>< Back</strong></label>
+               </a>
+               </section> -->
+            <a href=<%=thisapp.Helpers.setProjectBackLink(input.from_page,input.from_tab)%>>
+                <div class="back-link">
+                    <b>
+						<span style="color:#E54D4D;margin-left: 9%;">
+							<i class="fa fa-angle-left" style="font-size:18px;color:#E54D4D"></i>&nbsp;&nbsp;Back
+						</span>
+					</b>
+                </div>
+            </a>
+
+            <!----------------------------------Basic Information----------------------------->
+            <section id="section1">
+                <input type="radio" name="sections" id="option1" <%=setPage_Basic%>>
+                <label class='lbl-basic' for="option1"><%=thisapp.Viewer.generateStatusIcon(input.id.toLong(),"basicinfo")%>Basic Information</label>
+                <article>
+                    <%=Details_Top%>
+                       
+                        <table>
+                            <tr>
+                            	<td class="entry-id  no-top-border">Executive Summary</td>
+								<td class="no-top-border">
+								<%=if(Project.Executive_Summary != "",Project.Executive_Summary,DefaultDescExecSumm.get("ExecSumm"))%> 
+								</td>
+                            </tr>
+                            <tr>
+                                <td class="entry-id">Description</td>
+                                <td><%=if(Project.Description != "",Project.Description," ")%>
+                                </td>
+                            </tr>
+							<tr>
+                                <td class="entry-id">Business Unit</td>
+                                <td><%=Business_Unit.Business_Unit_Name%></td>
+                            </tr>
+							<tr>
+                                <td class="entry-id">Budget Year</td>
+								<td><%=Project.Budget_Year%></td>
+                            </tr>
+                            <tr>
+                                <td class="entry-id">Project Start Date</td>
+								<td>
+									<%=if(Project.Start_Date != null,thisapp.Controller.NormalDateConverter(Project.Start_Date)," ")%>
+								</td>
+                            </tr>
+                            <tr>
+                                <td class="entry-id">Project End Date</td>
+                                <td>
+								<%=project_end_date%><%=thisapp.Viewer.showChangeRequestHistory("Project Extension",input.id.toString())%>
+								<%=thisapp.Viewer.showExtendButton(input.id.toLong())%>
+								</td>
+                            </tr>
+							
+							<tr>
+                                <td class="entry-id">Is this an ICSR Project?</td>
+                                <td><%=Project.ICSR%></td>
+                            </tr>
+                            <tr>
+                                <td class="entry-id">Program Component</td>
+                                <td><%=Project.Program_Component%></td>
+                            </tr>
+							
+							<tr>
+                                <td class="entry-id">Project Type</td>
+                                <td><%=Project.Project_Type%></td>
+                            </tr>
+                            <tr>
+                                <td class="entry-id">Project Sub-type</td>
+                                <td><%=Project.Project_Subtype%></td>
+                            </tr>
+                            <tr>
+                                    <td class="entry-id">Area of Implementation</td>
+                                    <td><%=Project.Area_of_Implementation%></td>
+                            </tr>
+                            <tr>
+                                <td class="entry-id">Project Existing</td>
+                                <td><%=Project.Project_Existing%></td>
+                            </tr>
+                            <tr>
+                                <td class="entry-id">Currency Display</td>
+                                <td><%=Project.Project_Currency_Display%></td>
+                            </tr>
+                            <tr>
+                                <td class="entry-id">CSR Rating</td>
+                                <td><%=Project.CSR_Rating%></td>
+                            </tr>
+							<tr>
+                                <td class="entry-id">CSR Parameters</td>
+                                <td>
+<%
+	for each index x in Project.CSR_Criteria
+	{
+		%>
+<%=Project.CSR_Criteria.get(x)%><br>
+<%
+	}
+	%>
+</td>
+                            </tr>
+                           
+                        </table>
+                    </div>
+                </article>
+            </section>
+              <!----------------------------------Line Items / Budget----------------------------->
+            <section id="section2">
+                <!--//<input type="radio" name="sections" id="option2"  <%=setPage_Line%> >-->
+				<a href = <%=project_link%> style="color:black !important">
+                <label class='lbl-line' for="option2"><%=thisapp.Viewer.generateStatusIcon(input.id.toLong(),"line-item")%>Line Items/ Budget</label>
+				</a>
+                <article>
+                      
+                </article>
+            </section>
+            <!--KPI-->
+            <section id="section3">
+                <input type="radio" name="sections" id="option3"  <%=setPage_KPI%>>
+                <label class='lbl-kpi' for="option3"><%=thisapp.Viewer.generateStatusIcon(input.id.toLong(),"kpi")%>Key Performance<br>Indicator</label>
+                <article>
+                      <%=Details_Top_NoEdit%>
+                           <table class="budget-table">
+                               <tr class="line-item">
+                                   <td colspan="4" style="font-weight:700;">
+                                      <%=thisapp.Viewer.showAddButton(input.id.toLong(),"kpi",input.from_page,input.from_tab)%></td>
+                                 
+                               </tr>
+                           </table>
+                           <!--return KPIs-->
+<%
+	for each  rec in All_KPI
+	{
+		kpi_Refresh = "#Page:Project_Details_Page?id=" + input.id + "&section=kpi";
+		kpi_Links = thisapp.Controller.setEditDeleteLinks(input.id.toLong(),rec.ID,"kpi",input.from_page,input.from_tab);
+		%>
+<div class="line-item-details" style="margin-top:0">
+                                <div class="line-item-details" style="margin-top:0">
+                                        <div class="line-heading">
+										<span class="line-deets"><%=rec.KPI%> </span>
+                                        </div>
+                                       <%=kpi_Links.get("Edit_KPI")%>
+									    <%=kpi_Links.get("Delete_KPI")%>
+            
+                                        </hr>
+                                    </div>
+    
+                            </div>
+    
+                            <table class="approver-table" style="margin-bottom:25px">
+                              
+                                <tr>
+                                    <td class="approver-entry">Parameter</td>
+                                    <td><%=rec.Parameter%></td>
+                                </tr>
+                                <tr>
+                                    <td class="approver-entry">Target</td>
+                                    <td><%=rec.Target_Quantity%>
+<%
+		if(rec.Parameter == "Percentage")
+		{
+			%>
+%
+<%
+		}
+		%>
+</td>
+                                </tr>
+                            </table>
+<%
+	}
+	%>
+</article>
+            </section>
+            <!----------------------------------Beneficiary Details----------------------------->
+            <section id="section4">
+                <input type="radio" name="sections" id="option4"  <%=setPage_Ben%>>
+                <label class='lbl-ben' for="option4">
+					<%=thisapp.Viewer.generateStatusIcon(input.id.toLong(),"beneficiary")%><%=thisapp.Viewer.showAddLineItemToBen(input.id.toLong())%>
+				</label>
+                <article>
+                    <%=Details_Top_NoEdit%>
+                        <table class="budget-table">
+							<%=thisapp.Viewer.showAddButton(input.id.toLong(),"beneficiary",input.from_page,input.from_tab)%>
+                        </table>
+						<%=thisapp.Viewer.displayFinancialChangeRequestButtons(input.id.toLong())%>
+                        <!-- START of Beneficiary details-->
+<%
+	for each  beneficiary in All_Beneficiaries
+	{
+		Record_Beneficiary = List();
+		Record_Beneficiary = thisapp.Model.GetBeneficiaryDetails(beneficiary.ID);
+		ben_Links = thisapp.Controller.setEditDeleteLinks(input.id.toLong(),beneficiary.ID,"ben",input.from_page,input.from_tab);
+		%>
+<div class="line-item-details" style="margin-top:0">
+                            <div class="line-heading">
+							<span class="line-deets" style="text-transform: uppercase;"><%=Record_Beneficiary.get(0)%> </span>
+                            </div>
+                            <%=ben_Links.get("Edit_Ben")%>
+                            <%=ben_Links.get("Delete_Ben")%>
+                            <%=ben_Links.get("Change_Ben")%>
+                            <%=ben_Links.get("Pending_Ben")%>
+                            <%=ben_Links.get("Endorse_Ben")%>
+                            <%=ben_Links.get("Approve_Ben")%>
+							
+
+                            </hr>
+                        </div>
+						<div  style="padding: 30px 10px">
+							<table class="line-item-table ">
+								<tr class="line-item">
+									<td class="line-type-summ"  style='width:45%'>Category</td>
+									<td class="line-value-left no-pad-left"><%=Record_Beneficiary.get(1)%></td>
+								</tr>
+								<tr class="line-item">
+									<td class="line-type-summ"  style='width:45%'>Subcategory</td>
+									<td class="line-value-left no-pad-left"><%=Record_Beneficiary.get(2)%></td>
+								</tr>
+								<tr class="line-item">
+									<td class="line-type-summ"  style='width:45%'>Address</td>
+									<td class="line-value-left no-pad-left"><%=Record_Beneficiary.get(3)%></td>
+								</tr>
+								<tr class="line-item" style="padding-bottom: 50px !important;">
+									<td class="line-type-summ"  style='width:45%'>Location Coordinates</td>
+									<td class="line-value-left no-pad-left">
+										<%=Record_Beneficiary.get(6)%>
+										<a href="https://datastudio.google.com/u/0/reporting/52b5e920-dcf6-4f0c-8050-3053618d7a98/page/YeAeB" target=”_blank” >
+											<span title="Check the project implemenation history of the nearby BU's beneficiary on ABC Map" style="font-size:13px; color:#E54D4D; float:right">
+												<i class="fa fa-map-marker" ></i>  <b>ABC Map</b>
+											</span>
+										</a>
+									</td>
+								</tr>
+<%
+		if(Record_Beneficiary.get(4) != null && Record_Beneficiary.get(4) != "")
+		{
+			%>
+<tr class="line-item" style="padding-bottom: 50px !important;">
+									<td class="line-type-summ"  style='width:45%'>Contact Number</td>
+									<td class="line-value-left no-pad-left"><%=Record_Beneficiary.get(4)%></td>
+								</tr>
+<%
+		}
+		%>
+<tr class="line-item">
+									<td style='padding: 7px 0px !important'></td>
+									<td style='padding: 7px 0px !important'></td>
+								</tr>
+								<%=thisapp.Viewer.showBeneficiaryCount(beneficiary.ID)%>
+								<tr class="line-item" style="padding-bottom: 50px !important;">
+									<td class="line-type-summ"  style='width:45%'>PCNC Accredited?</td>
+									<td class="line-value-left no-pad-left"><%=Record_Beneficiary.get(7)%></td>
+								</tr>
+								<tr class="line-item">
+									<td style='padding: 7px 0px !important'></td>
+									<td style='padding: 7px 0px !important'></td>
+								</tr>
+								<!--%=thisapp.Viewer.showRowAddLineItem(id.toLong(),beneficiary.ID)%-->
+								<%=thisapp.Viewer.showRowAddLineItemV2(input.id.toLong(),beneficiary.ID)%>
+							</table>
+						</div>
+<%
+	}
+	%>
+<!-- END OF Beneficiary details -->
+                    </div>
+                </article>
+            </section>
+		
+            <!----------------------------Attachments---------------------->
+            <section id="section5">
+                    <input type="radio" name="sections" id="option5"  <%=setPage_Att%>>
+                    <label class='lbl-attachments' for="option5"><%=thisapp.Viewer.showUploadDocuments(input.id.toLong())%></label>
+                    <article>
+                            <%=Details_Top_NoEdit%>
+							<%=thisapp.Viewer.showProposalDocuments(input.id.toLong(),"Pre",input.from_page,input.from_tab)%>
+                            </div>
+                        </article>
+                </section>
+				
+				<!-------------------------------------------------- FEBRUARY 2023 -------------------------------------------------->
+<%
+	projectEntries = Project_Entry_Form[Status == "Closed" && ID == input.id.toLong()];
+	if(projectEntries.count() > 0)
+	{
+		%>
+<!-- Terminal Report -->
+		<section id="section8">
+                <input type="radio" name="sections" id="option8"  <%=setPage_Edit%>>
+                <label class='lbl-act' for="option8">Terminal Report</label>
+                <article>
+                     <%=Details_Top_NoEdit%>
+                        <table class="line-item-table ">
+						<!-- //Terminal Report -->
+							<%=thisapp.DevtacIntegrationsPhase2.TerminalReportView()%>
+        				</table>
+    			</article>
+    		</section>
+
+			<!-- Fund Request -->
+				<section id="section9">
+                <input type="radio" name="sections" id="option9"  <%=setPage_Edit%>>
+                <label class='lbl-act' for="option9">Fund Request</label>
+                <article>
+                     <%=Details_Top_NoEdit%>
+                        <table class="line-item-table ">
+						<!-- //Fund Request TAB -->
+							<%=thisapp.DevtacIntegrationsPhase2.FundRequestView()%>
+        				</table>
+    			</article>
+    		</section>
+			
+			<!-- Cash Counterpart Liquidation -->
+				<section id="section10">
+                <input type="radio" name="sections" id="option10"  <%=setPage_Edit%>>
+                <label class='lbl-act' for="option10">Cash Counterpart Liquidation</label>
+                <article>
+                     <%=Details_Top_NoEdit%>
+                        <table class="line-item-table ">
+						<!-- //Cash Counterpart Liquidation TAB -->
+								<tr class="line-item">
+									<td class="line-type-summ"  style='width:45%'>Cash Counterpart Liquidation</td>
+									<td class="line-value-left no-pad-left">TESTING 1</td>
+								</tr>
+        				</table>
+    			</article>
+    		</section>
+			
+			<!-- Adopt-A-School -->
+				<section id="section11">
+                <input type="radio" name="sections" id="option11"  <%=setPage_Edit%>>
+                <label class='lbl-act' for="option11">Adopt-A-School</label>
+                <article>
+                     <%=Details_Top_NoEdit%>
+                        <table class="line-item-table ">
+						<!-- //Adopt-A-School TAB -->
+						<tr class="line-item">
+									<td class="line-type-summ"  style='width:45%'>TBD</td>
+									<td class="line-value-left no-pad-left">TESTING 1</td>
+								</tr>
+        				</table>
+    			</article>
+    		</section>
+			
+			<!-- Notice of Donation -->
+				<section id="section12">
+                <input type="radio" name="sections" id="option12"  <%=setPage_Edit%>>
+                <label class='lbl-act' for="option12">Notice of Donation</label>
+                <article>
+                     <%=Details_Top_NoEdit%>
+                        <table class="line-item-table ">
+						<!-- //Notice of Donation TAB -->
+						<tr class="line-item">
+									<td class="line-type-summ"  style='width:45%'>TBD</td>
+									<td class="line-value-left no-pad-left">TESTING 1</td>
+								</tr>
+        				</table>
+    			</article>
+    		</section>
+<%
+	}
+	%>
+<!-------------------------------------------------- FEBRUARY 2023 -------------------------------------------------->
+
+            <!--Approval Workflow Here-->
+            <section id="section6">
+                <input type="radio" name="sections" id="option6"  <%=setPage_Work%>>
+                <label class='lbl-workflow' for="option6"><%=thisapp.Viewer.generateStatusIcon(input.id.toLong(),"workflow")%>Approval Workflow</label>
+                <article>
+                    <%=Details_Top_NoEdit%>
+<%
+	if(Project.Status == "Drafted")
+	{
+		%>
+<%=thisapp.Viewer.htmlDraftApprover("edit",input.id.toLong(),User.ID,1)%>
+					<%=thisapp.Viewer.htmlDraftApprover("",input.id.toLong(),User.ID,2)%>
+					<%=thisapp.Viewer.htmlDraftApprover("edit",input.id.toLong(),User.ID,3)%>
+					<%=thisapp.Viewer.htmlDraftApprover("",input.id.toLong(),User.ID,4)%>
+					<%=thisapp.Viewer.htmlDraftApprover("",input.id.toLong(),User.ID,5)%>
+<%
+	}
+	else
+	{
+		%>
+<%=thisapp.Viewer.ShowApproverLine(input.id.toLong(),1)%>
+					<%=thisapp.Viewer.ShowApproverLine(input.id.toLong(),2)%>
+					<!--//UPDATE: John Emmanuel Magtibay | 02/09/2021 %=thisapp.Viewer.ShowApproverLine(id.toLong(),3)%-->
+					<!--//UPDATE: John Emmanuel Magtibay | 04/30/2021-->
+					<%=thisapp.Viewer.ShowApproverLine(input.id.toLong(),3)%>
+					<!--//END OF UPDATE-->
+					<%=thisapp.Viewer.ShowApproverLine(input.id.toLong(),4)%>
+					<%=thisapp.Viewer.ShowApproverLine(input.id.toLong(),5)%>
+<%
+	}
+	%>
+</div>
+                </article>
+            </section>
+
+            <!-- History -->
+            <section id="section7">
+                <input type="radio" name="sections" id="option7"  <%=setPage_Edit%>>
+                <label class='lbl-act' for="option7">Activity Log</label>
+                <article>
+                     <%=Details_Top_NoEdit%>
+                        <table>
+						<!--//UPDATED : Enable by Tan -->
+						<%=thisapp.Viewer.showProjectHistory(input.id.toLong())%>
+        				</table>
+    				</div>
+    			</article>
+    		</section>
+</div>
+
+<div class="buttons-wrap">
+	<%=actionButton%>
+	<%=withdrawButton%>
+	<%=reversalButton%>
+	<a class='lnk-print' href=<%=print_link%> target="_blank"><div class='submit-but' style='margin-top: 15px'>Print</div></a>
+	<a class='lnk-download' href=<%=download_link%> target="_blank"><div class='submit-but' style='margin-top: 15px'>Download PDF</div></a>
+    </div>
+    </div>
+</body>
+
+</html>
+<%
+
+}%>
