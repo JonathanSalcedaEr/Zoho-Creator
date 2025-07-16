@@ -1,0 +1,579 @@
+string Viewer.displayPreviousAvailments(int Item_ID)
+{
+	linked_line_item = Line_Item_to_Beneficiary_Form[ID == input.Item_ID.toLong()];
+	beneficiary_record = Beneficiary_Entry_Form[ID == linked_line_item.Beneficiary_ID];
+	line_item_record = Line_Item_Header_Form[ID == linked_line_item.Line_Item];
+	project_ref_no = Project_Entry_Form[ID == linked_line_item.Project_ID].Reference_Number;
+	fr_availments = List();
+	//TOTAL AVAILMENTS/ADJUSTMENTS
+	total_availments_adjustments = 0;
+	total_adjustments = 0;
+	total_new_total = 0;
+	total_availments = 0;
+	total_balance = 0;
+	//MANUAL DISBURSEMENT
+	benficiary_line_item_id = input.Item_ID.toLong();
+	beneficiary_line_item = Line_Item_to_Beneficiary_Form[ID == benficiary_line_item_id];
+	if(beneficiary_line_item.count() > 0 && beneficiary_line_item.Manually_Disbursed_Amount != null && beneficiary_line_item.Manually_Disbursed_Amount != 0)
+	{
+		fr_item = "MD-" + beneficiary_line_item.ID;
+		fr_availments.add(fr_item);
+	}
+	//CASH ADVANCE RECORD
+	ca_s = Cash_Advance_Detail_Form[Line_Item == input.Item_ID.toLong() && Status == "Active"];
+	if(ca_s.count() > 0)
+	{
+		for each  ca in ca_s
+		{
+			//check if already has a liquidation entry by checking the ca header status
+			//if ca header status is closed it means liquidation is created and processed
+			//if liquidation entry exist, simply ignore and do not add
+			ca_header = Cash_Advance_Header[ID == ca.CA_ID && Status != "Closed" && Status != "Deleted"];
+			if(ca_header.count() > 0)
+			{
+				fr_item = "CA-" + ca.ID;
+				fr_availments.add(fr_item);
+			}
+		}
+	}
+	//LIQUIDATION RECORD
+	liq_items = Liquidation_Detail_Form[Line_Item == input.Item_ID.toLong() && Status == "Active"];
+	if(liq_items.count() > 0)
+	{
+		for each  liq in liq_items
+		{
+			//check liquidation header if status is closed, only inlcude processed liquidation in the computation of availments
+			liq_header = Liquidation_Header[ID == liq.Liquidation_ID && Status == "Closed"];
+			ca_header = Cash_Advance_Header[ID == liq_header.CA_ID];
+			if(liq_header.count() > 0)
+			{
+				fr_item = "LQ-" + liq.ID;
+				fr_availments.add(fr_item);
+			}
+		}
+	}
+	//REIMBURSEMENT RECORD
+	r_items = Reimbursement_Detail_Form[Line_Item == input.Item_ID.toLong() && Status == "Active"];
+	if(r_items.count() > 0)
+	{
+		for each  r in r_items
+		{
+			//check liquidation header if status is closed, only inlcude processed liquidation in the computation of availments
+			r_header = Reimbursement_Header[ID == r.Reimbursement_ID && Status != "Deleted"];
+			if(r_header.count() > 0)
+			{
+				fr_item = "RM-" + r.ID;
+				fr_availments.add(fr_item);
+			}
+		}
+	}
+	//PURCHASE REQUISITION
+	pr_s = Purchase_Requisition_Detail_Form[Line_Item == input.Item_ID.toLong() && Status == "Active"];
+	if(pr_s.count() > 0)
+	{
+		for each  pr in pr_s
+		{
+			pr_header = Purchase_Requisition_Header[ID == pr.PR_ID && Status != "Deleted"];
+			//
+			//if(pr_header.count() > 0 && input.Selected_FR != "Purchase_Requisition" || pr.PR_ID != input.FR_ID.toLong() || pr_header.Status = "Closed")
+			//if(pr_header.count() > 0 && input.Selected_FR != "Purchase_Requisition" || pr.PR_ID != input.FR_ID.toLong())
+			if(pr_header.count() > 0)
+			{
+				fr_item = "PR-" + pr.ID;
+				fr_availments.add(fr_item);
+			}
+		}
+	}
+	//SUPPLIER PAYMENT
+	sp_s = Supplier_Payment_Detail_Form[Line_Item == input.Item_ID.toLong() && PR_Item == null && Status == "Active"];
+	if(sp_s.count() > 0)
+	{
+		for each  sp in sp_s
+		{
+			sp_header = Supplier_Payment_Header[ID == sp.Supplier_Payment_ID && Status != "Deleted"];
+			//
+			//if(sp_header.count() > 0 && sp_header.No_Purchase_Requisition == true && input.Selected_FR != "Supplier_Payment" || sp.Supplier_Payment_ID != input.FR_ID.toLong() || sp_header.Status = "Closed")
+			if(sp_header.count() > 0 && sp_header.No_Purchase_Requisition == true)
+			{
+				fr_item = "SP-" + sp.ID;
+				fr_availments.add(fr_item);
+			}
+		}
+	}
+	//SUPPLEMENTAL BUDGET
+	sb_s = Supplementary_Budget_Details_Form[Line_Item == input.Item_ID.toLong() && Status == "Active"];
+	if(sb_s.count() > 0)
+	{
+		for each  sb in sb_s
+		{
+			sb_header = Supplementary_Budget_Header_Form[ID == sb.Supplemental_Budget_ID && Status != "Deleted"];
+			//
+			if(sb_header.count() > 0)
+			{
+				fr_item = "SB-" + sb.ID;
+				fr_availments.add(fr_item);
+			}
+		}
+	}
+	//COST REALIGNMENT
+	cr_s = Cost_Realignment_Details_Form[Line_Item == input.Item_ID.toLong() && Status == "Active"];
+	if(sb_s.count() > 0)
+	{
+		for each  cr in cr_s
+		{
+			cr_header = Cost_Realignment_Header_Form[ID == cr.Cost_Realignment_ID && Status != "Deleted"];
+			//
+			if(cr_header.count() > 0)
+			{
+				fr_item = "CR-" + cr.ID;
+				fr_availments.add(fr_item);
+			}
+		}
+	}
+	//
+	//
+	//
+	//DISPLAY TABLE HEADER
+	style = "border: 0px solid !important; padding: 5px !important;  font-size:12px !important;";
+	html = "";
+	//
+	html = html + "<table style='min-width:1100px'>";
+	html = html + "<tr>";
+	html = html + "<td class='no-border'><span class='project-title'><b>Previous Availments and Adjustments  |  " + project_ref_no + "</span></td>";
+	html = html + "<td class='no-border' style='text-align: right'>";
+	html = html + "<span style='padding:0px!important'>Beneficiary <strong>" + beneficiary_record.Beneficiary_Name.toUpperCase() + "</strong></span><br>";
+	html = html + "<span style='padding:0px!important'>Line Item <strong>" + line_item_record.Line_Item.toUpperCase() + "</strong></span>";
+	html = html + "</td>";
+	html = html + "</tr>";
+	html = html + "</table>";
+	//HEADER
+	html = html + "<div style='min-height: 300px'>";
+	html = html + "<table>";
+	html = html + "<tr>";
+	html = html + "<td class='table-head-text' style='text-align:left' width='15%'>REQUEST TYPE</td>";
+	html = html + "<td class='table-head-text' style='text-align:left' width='15%'>TRANSACTION TYPE</td>";
+	html = html + "<td class='table-head-text' style='text-align:center' width='10%'>REFERENCE NUMBER</td>";
+	html = html + "<td class='table-head-text' style='text-align:center' width='10%'>ORIGINAL</td>";
+	html = html + "<td class='table-head-text' style='text-align:center' width='10%'>ADJUSTMENTS</td>";
+	html = html + "<td class='table-head-text' style='text-align:center' width='10%'>NEW TOTAL</td>";
+	html = html + "<td class='table-head-text' style='text-align:center' width='10%'>AVAILMENTS</td>";
+	html = html + "<td class='table-head-text' style='text-align:center' width='10%'>BALANCE</td>";
+	html = html + "<td class='table-head-text' style='text-align:center' width='10%'>STATUS</td>";
+	html = html + "</tr>";
+	html = html + "</table>";
+	//
+	if(fr_availments.size() > 0)
+	{
+		//RECORDS
+		for each  fr in fr_availments
+		{
+			//html = "<br>" + fr_availments.get("FR_Reference_Number");
+			fr_record = fr.toList("-");
+			//MANUAL DISBURSEMENT
+			if(fr_record.get(0) = "MD")
+			{
+				beneficiary_line_item_record = Line_Item_to_Beneficiary_Form[ID == fr_record.get(1)];
+				//
+				original_amount = beneficiary_line_item_record.Total_Amount;
+				adjustments = 0;
+				new_total = original_amount + adjustments;
+				availments = beneficiary_line_item_record.Manually_Disbursed_Amount * -1;
+				balance = new_total + availments;
+				//
+				total_adjustments = total_adjustments + adjustments;
+				total_availments = total_availments + availments;
+				//
+				start = "<a style='color: #000000 !important' target='_blank' >";
+				end = "</a>";
+				//HTML 
+				if(beneficiary_line_item_record.count() > 0)
+				{
+					html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+					html = html + "<table>";
+					//html = html + "<tr><td  style='" + style + "' colspan=7>&nbsp</td></tr>";
+					html = html + "<tr>";
+					html = html + "<td width='41%' colspan=3 style='" + style + "text-align:left'>" + start + "MANUAL DISBURSEMENT" + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:center'>" + start + "-" + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:center'>" + start + "-" + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:center'>" + start + "-" + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(availments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:center'>" + start + "-" + end + "</td>";
+					html = html + "<td width='9%' style='" + style + "text-align:center'>" + start + "-" + end + "</td>";
+					html = html + "</tr>";
+					html = html + "</table>";
+					html = html + "</div><br>";
+				}
+			}
+			//CASH ADVANCE 
+			if(fr_record.get(0) = "CA")
+			{
+				ca_item = Cash_Advance_Detail_Form[ID == fr_record.get(1)];
+				ca_item_header = Cash_Advance_Header[ID == ca_item.CA_ID];
+				ca_fund_release_date = if(ca_item_header.Fund_Release_Date != null,thisapp.Controller.NormalDateConverter(ca_item_header.Fund_Release_Date),"To be determined");
+				//
+				original_amount = linked_line_item.Total_Amount;
+				adjustments = 0;
+				new_total = original_amount + adjustments;
+				availments = ca_item.Cash_Advance_Amount * -1;
+				balance = new_total + availments;
+				//
+				total_adjustments = total_adjustments + adjustments;
+				total_availments = total_availments + availments;
+				//
+				//LINK
+				ca_link = "#Page:CA_Details_Page?ca_id=" + ca_item_header.ID + "&section=cash-advance";
+				start = "<a style='color: #000000 !important' target='_blank' href= '" + ca_link + "'>";
+				end = "</a>";
+				//HTML 
+				if(ca_item_header.count() > 0)
+				{
+					html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+					html = html + "<table>";
+					//html = html + "<tr><td  style='" + style + "' colspan=7>&nbsp</td></tr>";
+					html = html + "<tr>";
+					html = html + "<td width='13%' style='" + style + "text-align:left'>" + start + "CASH ADVANCE" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + "N/A" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + ca_item_header.CA_Reference_Number + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(original_amount) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(adjustments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(new_total) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(availments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(balance) + end + "</td>";
+					html = html + "<td width='9%' style='" + style + "text-align:center'>" + start + ca_item_header.Status + end + "</td>";
+					html = html + "</tr>";
+					html = html + "</table>";
+					html = html + "</div><br>";
+				}
+			}
+			//LIQUIDATION
+			if(fr_record.get(0) = "LQ")
+			{
+				liquidation_item = Liquidation_Detail_Form[ID == fr_record.get(1)];
+				liquidation_item_header = Liquidation_Header[ID == liquidation_item.Liquidation_ID];
+				//
+				original_amount = linked_line_item.Total_Amount;
+				adjustments = 0;
+				new_total = original_amount + adjustments;
+				availments = liquidation_item.Liquidation_Amount * -1;
+				balance = new_total + availments;
+				//
+				total_adjustments = total_adjustments + adjustments;
+				total_availments = total_availments + availments;
+				//
+				//LINK
+				liq_link = "#Page:CA_Details_Page?ca_id=" + liquidation_item_header.CA_ID + "&liquidation_id=" + liquidation_item_header.ID + "&section=liquidation";
+				start = "<a style='color: #000000 !important' target='_blank' href= '" + liq_link + "'>";
+				end = "</a>";
+				//HTML 
+				if(liquidation_item_header.count() > 0)
+				{
+					html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+					html = html + "<table>";
+					html = html + "<tr>";
+					html = html + "<td width='13%' style='" + style + "text-align:left'>" + start + "LIQUIDATION" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + "N/A" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + liquidation_item_header.Liquidation_Reference_Number + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(original_amount) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(adjustments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(new_total) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(availments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(balance) + end + "</td>";
+					html = html + "<td width='9%' style='" + style + "text-align:center'>" + start + liquidation_item_header.Status + end + "</td>";
+					html = html + "</tr>";
+					html = html + "</table>";
+					html = html + "</div><br>";
+				}
+			}
+			//REIMBURSEMENT
+			if(fr_record.get(0) = "RM")
+			{
+				reimbursement_item = Reimbursement_Detail_Form[ID == fr_record.get(1)];
+				reimbursement_item_header = Reimbursement_Header[ID == reimbursement_item.Reimbursement_ID];
+				//
+				original_amount = linked_line_item.Total_Amount;
+				adjustments = 0;
+				new_total = original_amount + adjustments;
+				availments = reimbursement_item.Reimbursable_Expense_Amount * -1;
+				balance = new_total + availments;
+				//
+				total_adjustments = total_adjustments + adjustments;
+				total_availments = total_availments + availments;
+				//
+				reimbursement_fund_release_date = if(reimbursement_item_header.Date_Actual_Fund_Released != null,thisapp.Controller.NormalDateConverter(reimbursement_item_header.Date_Actual_Fund_Released),"To be determined");
+				//LINK
+				rm_link = "#Page:Reimbursement_Details_Page?reimbursement_id=" + reimbursement_item_header.ID + "&section=basic-info";
+				start = "<a style='color: #000000 !important' target='_blank' href= '" + rm_link + "'>";
+				end = "</a>";
+				//HTML 
+				if(reimbursement_item_header.count() > 0)
+				{
+					html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+					html = html + "<table>";
+					html = html + "<tr>";
+					html = html + "<td width='13%' style='" + style + "text-align:left'>" + start + "REIMBURSEMENT" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + "N/A" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + reimbursement_item_header.Reimbursement_Reference_Number + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(original_amount) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(adjustments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(new_total) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(availments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(balance) + end + "</td>";
+					html = html + "<td width='9%' style='" + style + "text-align:center'>" + start + reimbursement_item_header.Status + end + "</td>";
+					html = html + "</tr>";
+					html = html + "</table>";
+					html = html + "</div><br>";
+				}
+			}
+			//PURCHASE REQUISITION
+			if(fr_record.get(0) = "PR")
+			{
+				pr_item = Purchase_Requisition_Detail_Form[ID == fr_record.get(1)];
+				pr_item_header = Purchase_Requisition_Header[ID == pr_item.PR_ID];
+				//
+				original_amount = linked_line_item.Total_Amount;
+				adjustments = 0;
+				new_total = original_amount + adjustments;
+				if(pr_item_header.Status == "Closed")
+				{
+					availments = thisapp.Model.computePRItemTotalPayment(pr_item.ID) * -1;
+				}
+				else
+				{
+					availments = thisapp.Model.computePRItemTotalPayment2(pr_item.ID) * -1;
+				}
+				balance = new_total + availments;
+				//
+				total_adjustments = total_adjustments + adjustments;
+				total_availments = total_availments + availments;
+				//
+				//PR APPROVAL DATE
+				afi_accounting_manager_min = thisapp.Controller.getApproverRecord("Purchase Requisition","AFI Accounting Manager").get(3);
+				afi_accounting_manager_max = thisapp.Controller.getApproverRecord("Purchase Requisition","AFI Accounting Manager").get(4);
+				afi_opmt_min = thisapp.Controller.getApproverRecord("Purchase Requisition","AFI OPMT").get(3);
+				afi_opmt_max = thisapp.Controller.getApproverRecord("Purchase Requisition","AFI OPMT").get(4);
+				afi_coo_min = thisapp.Controller.getApproverRecord("Purchase Requisition","AFI COO").get(3);
+				afi_coo_max = thisapp.Controller.getApproverRecord("Purchase Requisition","AFI COO").get(4);
+				if(pr_item_header.Total_Amount <= afi_accounting_manager_max)
+				{
+					pr_approval_date = if(pr_item_header.AFI_Accounting_Manager_Approved_Date != null,thisapp.Controller.NormalDateConverter(pr_item_header.AFI_Accounting_Manager_Approved_Date),"To be determined");
+				}
+				else
+				{
+					pr_approval_date = if(pr_item_header.Executive_Approver_Approved_Date != null,thisapp.Controller.NormalDateConverter(pr_item_header.Executive_Approver_Approved_Date),"To be determined");
+				}
+				//LINK
+				pr_link = "#Page:PR_Details_Page?pr_id=" + pr_item.PR_ID + "&section=purchase-requisition";
+				start = "<a style='color: #000000 !important' target='_blank' href= '" + pr_link + "'>";
+				end = "</a>";
+				//HTML 
+				if(pr_item_header.count() > 0)
+				{
+					html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+					html = html + "<table>";
+					html = html + "<tr>";
+					html = html + "<td width='13%' style='" + style + "text-align:left'>" + start + "PURCHASE REQUISTION" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + pr_item_header.PR_Type.toUpperCase() + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + pr_item_header.Purchase_Requisition_Reference_Number + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(original_amount) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(adjustments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(new_total) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(availments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(balance) + end + "</td>";
+					html = html + "<td width='9%' style='" + style + "text-align:center'>" + start + pr_item_header.Status + end + "</td>";
+					html = html + "</tr>";
+				}
+				//For Closed PR
+				if(pr_item_header.count() > 0 && pr_item_header.Status == "Closed" || pr_item_header.Status == "Cancelled")
+				{
+					//Display Supplier Payment Items on the PR Item
+					supplier_payment_items = Supplier_Payment_Detail_Form[PR_Item_ID == pr.ID && Status == "Active"];
+					if(supplier_payment_items.count() > 0)
+					{
+						for each  sp_item in supplier_payment_items
+						{
+							supplier_payment_header = Supplier_Payment_Header[ID == sp_item.Supplier_Payment_ID && Status != "Deleted"];
+							//LINK
+							sp_link = "#Page:Supplier_Payment_Details_Page?supplier_payment_id=" + sp_item.Supplier_Payment_ID + "&section=supplier_payment";
+							start = "<a style='color: #808080 !important' target='_blank' href= '" + sp_link + "'>";
+							end = "</a>";
+							if(supplier_payment_header.count() > 0)
+							{
+								supplier_payment_amount = sp_item.Payment_Amount * -1;
+								//total_availments_adjustments = total_availments_adjustments + supplier_payment_amount;
+								sp_fund_release_date = if(supplier_payment_header.Date_Actual_Fund_Released != null,thisapp.Controller.NormalDateConverter(supplier_payment_header.Date_Actual_Fund_Released),"To be determined");
+								supplier_payment_document_number = if(supplier_payment_header.Supplier_Document_Reference_Number != "",supplier_payment_header.Supplier_Document_Reference_Number,"To be determined");
+								//HTML 
+								html = html + "<tr>";
+								html = html + "<td style='" + style + "text-align:left;'>" + start + "SUPPLIER PAYMENT" + end + "</td>";
+								html = html + "<td style='" + style + "text-align:left;'>" + start + supplier_payment_header.Payment_Type.toUpperCase() + end + "</td>";
+								html = html + "<td style='" + style + "text-align:left;'>" + start + supplier_payment_header.Supplier_Payment_Reference_Number + end + "</td>";
+								html = html + "<td style='" + style + "text-align:center;'>" + start + "-" + end + "</td>";
+								html = html + "<td style='" + style + "text-align:center;'>" + start + "-" + end + "</td>";
+								html = html + "<td style='" + style + "text-align:center;'>" + start + "-" + end + "</td>";
+								html = html + "<td style='" + style + "text-align:right;'>" + start + thisapp.Viewer.toDisplayAmountSign(supplier_payment_amount) + end + "</td>";
+								html = html + "<td style='" + style + "text-align:center;'>" + start + "-" + end + "</td>";
+								html = html + "<td style='" + style + "text-align:center;'>" + start + supplier_payment_header.Status + end + "</td>";
+								html = html + "</tr>";
+							}
+						}
+					}
+				}
+				html = html + "</table>";
+				html = html + "</div><br>";
+			}
+			//SUPPLIER PAYMENT - NO PR
+			if(fr_record.get(0) = "SP")
+			{
+				supplier_payment_item = Supplier_Payment_Detail_Form[ID == fr_record.get(1)];
+				supplier_payment_item_header = Supplier_Payment_Header[ID == supplier_payment_item.Supplier_Payment_ID];
+				//
+				original_amount = linked_line_item.Total_Amount;
+				adjustments = 0;
+				new_total = original_amount + adjustments;
+				availments = supplier_payment_item.Payment_Amount * -1;
+				balance = new_total + availments;
+				//
+				total_adjustments = total_adjustments + adjustments;
+				total_availments = total_availments + availments;
+				//
+				supplier_payment_fund_release_date = if(supplier_payment_item_header.Date_Actual_Fund_Released != null,thisapp.Controller.NormalDateConverter(supplier_payment_item_header.Date_Actual_Fund_Released),"To be determined");
+				supplier_payment_document_number = if(supplier_payment_item_header.Supplier_Document_Reference_Number != "",supplier_payment_item_header.Supplier_Document_Reference_Number,"To be determined");
+				//LINK
+				sp_link = "#Page:Supplier_Payment_Details_Page?supplier_payment_id=" + supplier_payment_item.Supplier_Payment_ID + "&section=supplier_payment";
+				start = "<a  style='color: #000000 !important' target='_blank' href='" + sp_link + "'>";
+				end = "</a>";
+				//HTML
+				if(supplier_payment_item_header.count() > 0)
+				{
+					html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+					html = html + "<table>";
+					html = html + "<tr>";
+					html = html + "<td width='13%' style='" + style + "text-align:left'>" + start + "SUPPLIER PAYMENT" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + supplier_payment_item_header.Payment_Type.toUpperCase() + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + supplier_payment_item_header.Supplier_Payment_Reference_Number + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(original_amount) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(adjustments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(new_total) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(availments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(balance) + end + "</td>";
+					html = html + "<td width='9%' style='" + style + "text-align:center'>" + start + supplier_payment_item_header.Status + end + "</td>";
+					html = html + "</tr>";
+					html = html + "</table>";
+					html = html + "</div><br>";
+				}
+			}
+			//SUPPLEMENTAL BUDGET
+			if(fr_record.get(0) = "SB")
+			{
+				supplemental_budget_item = Supplementary_Budget_Details_Form[ID == fr_record.get(1)];
+				supplemental_budget_header = Supplementary_Budget_Header_Form[ID == supplemental_budget_item.Supplemental_Budget_ID];
+				//
+				original_amount = linked_line_item.Total_Amount;
+				adjustments = supplemental_budget_item.Total_Supplemental_Amount;
+				new_total = original_amount + adjustments;
+				availments = 0;
+				balance = new_total + availments;
+				//
+				total_adjustments = total_adjustments + adjustments;
+				total_availments = total_availments + availments;
+				//
+				//LINK
+				supplemental_budget_link = "#Page:Supplemental_Budget_Details_Page?supplemental_budget_id=" + supplemental_budget_header.ID + "&section=supplemental_budget";
+				start = "<a style='color: #000000 !important' target='_blank' href= '" + supplemental_budget_link + "'>";
+				end = "</a>";
+				//HTML 
+				if(supplemental_budget_header.count() > 0)
+				{
+					html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+					html = html + "<table>";
+					html = html + "<tr>";
+					html = html + "<td width='13%' style='" + style + "text-align:left'>" + start + "SUPPLEMENTAL BUDGET" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + "N/A" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + supplemental_budget_header.Supplementary_Budget_Reference_Number + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(original_amount) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(adjustments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(new_total) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(availments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(balance) + end + "</td>";
+					html = html + "<td width='9%' style='" + style + "text-align:center'>" + start + supplemental_budget_header.Status + end + "</td>";
+					html = html + "</tr>";
+					html = html + "</table>";
+					html = html + "</div><br>";
+				}
+			}
+			//COST REALIGNMENT
+			if(fr_record.get(0) = "CR")
+			{
+				cost_realignment_item = Cost_Realignment_Details_Form[ID == fr_record.get(1)];
+				cost_realignment_header = Cost_Realignment_Header_Form[ID == cost_realignment_item.Cost_Realignment_ID];
+				//
+				original_amount = linked_line_item.Total_Amount;
+				adjustments = cost_realignment_item.Realignment_Amount;
+				new_total = original_amount + adjustments;
+				availments = 0;
+				balance = new_total + availments;
+				//
+				total_adjustments = total_adjustments + adjustments;
+				total_availments = total_availments + availments;
+				//
+				//LINK
+				cost_realignment_link = "#Page:Cost_Realignment_Details_Page?cost_realignment_id=" + cost_realignment_header.ID + "&section=cost_realignment";
+				start = "<a style='color: #000000 !important' target='_blank' href= '" + cost_realignment_link + "'>";
+				end = "</a>";
+				//HTML 
+				if(cost_realignment_header.count() > 0)
+				{
+					html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+					html = html + "<table>";
+					html = html + "<tr>";
+					html = html + "<td width='13%' style='" + style + "text-align:left'>" + start + "COST REALIGNMENT" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + "N/A" + end + "</td>";
+					html = html + "<td width='14%' style='" + style + "text-align:left'>" + start + cost_realignment_header.Cost_Realignment_Reference_Number + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(original_amount) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(adjustments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(new_total) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(availments) + end + "</td>";
+					html = html + "<td width='10%' style='" + style + "text-align:right'>" + start + thisapp.Viewer.toDisplayAmountSign(balance) + end + "</td>";
+					html = html + "<td width='9%' style='" + style + "text-align:center'>" + start + cost_realignment_header.Status + end + "</td>";
+					html = html + "</tr>";
+					html = html + "</table>";
+					html = html + "</div><br>";
+				}
+			}
+		}
+		html = html + "</table>";
+		//DISPLAY TOTAL ROW
+		original_amount = linked_line_item.Total_Amount;
+		total_adjustments = total_adjustments;
+		total_new_total = original_amount + total_adjustments;
+		total_availments = total_availments;
+		total_balance = new_total + total_availments;
+		//
+		html = html + "<div>";
+		html = html + "<table>";
+		html = html + "<tr>";
+		html = html + "<td width='41%' style='" + style + "text-align:left' colspan=3 ><b>TOTAL AVAILMENTS AND ADJUSTMENTS</b></td>";
+		html = html + "<td width='10%' style='" + style + "text-align:right'><b>" + thisapp.Viewer.toDisplayAmountSign(original_amount) + "</b></td>";
+		html = html + "<td width='10%' style='" + style + "text-align:right'><b>" + thisapp.Viewer.toDisplayAmountSign(total_adjustments) + "</b></td>";
+		html = html + "<td width='10%' style='" + style + "text-align:right'><b>" + thisapp.Viewer.toDisplayAmountSign(total_new_total) + "</b></td>";
+		html = html + "<td width='10%' style='" + style + "text-align:right'><b>" + thisapp.Viewer.toDisplayAmountSign(total_availments) + "</b></td>";
+		html = html + "<td width='10%' style='" + style + "text-align:right'><b>" + thisapp.Viewer.toDisplayAmountSign(total_balance) + "</b></td>";
+		html = html + "<td width='9%' style='" + style + "text-align:right'></td>";
+		html = html + "</tr>";
+		html = html + "</table>";
+		html = html + "</div><br>";
+	}
+	else
+	{
+		html = html + "<div style='background-color:#F2F2F2;padding:10px;border-radius:5px'>";
+		html = html + "<table>";
+		html = html + "<tr>";
+		html = html + "<td style='" + style + "text-align:center' colspan=9 ><b>NO AVAILMENTS NOR ADJUSTMENTS YET</b></td>";
+		html = html + "</tr>";
+		html = html + "</table>";
+		html = html + "</div><br>";
+	}
+	html = html + "</div>";
+	//DISPLAY ON FORM
+	return html;
+}
